@@ -1,10 +1,10 @@
 import { Header } from '@/components/Header';
 
-export default function Home() {
+export default function EventPage() {
   return (
     <div className="min-h-screen">
       <Header 
-        currentView="home"
+        currentView="search"
         isLoggedIn={false}
       />
     </div>
