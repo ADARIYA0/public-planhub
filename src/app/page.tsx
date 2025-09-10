@@ -185,17 +185,18 @@ export default function Home() {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
-            {mockEvents.slice(0, 6).map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onViewDetails={handleViewEvent}
-                onRegister={handleRegisterEvent}
-                isLoggedIn={!!user}
-              />
-            ))}
-          </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
+                   {mockEvents.slice(0, 6).map((event) => (
+                     <EventCard
+                       key={event.id}
+                       event={event}
+                       onViewDetails={handleViewEvent}
+                       onRegister={handleRegisterEvent}
+                       isLoggedIn={!!user}
+                       fromPage="home"
+                     />
+                   ))}
+                 </div>
 
           <div className="text-center">
             <Button

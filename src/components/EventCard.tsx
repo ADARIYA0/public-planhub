@@ -1,5 +1,8 @@
+'use client';
+
 import { Calendar, MapPin, Clock, Users } from 'lucide-react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardFooter } from './ui/card';
@@ -10,9 +13,12 @@ interface EventCardProps {
   onViewDetails: (eventId: string) => void;
   onRegister: (eventId: string) => void;
   isLoggedIn: boolean;
+  fromPage?: 'home' | 'event';
 }
 
-export function EventCard({ event, onViewDetails, onRegister, isLoggedIn }: EventCardProps) {
+export function EventCard({ event, onViewDetails, onRegister, isLoggedIn, fromPage = 'home' }: EventCardProps) {
+  const router = useRouter();
+  
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('id-ID', { 
@@ -41,6 +47,10 @@ export function EventCard({ event, onViewDetails, onRegister, isLoggedIn }: Even
 
   const isEventFull = event.registeredParticipants >= event.maxParticipants;
   const isEventPassed = new Date(`${event.date} ${event.time}`) < new Date();
+
+  const handleViewDetails = () => {
+    router.push(`/event-detail/${event.id}?from=${fromPage}`);
+  };
 
   return (
     <Card className="group hover:shadow-xl transition-all duration-300 overflow-hidden bg-white border border-gray-200 shadow-medium hover:-translate-y-1 flex flex-col h-full">
@@ -108,7 +118,7 @@ export function EventCard({ event, onViewDetails, onRegister, isLoggedIn }: Even
         <div className="w-full grid grid-cols-2 gap-3">
           <Button
             variant="outline"
-            onClick={() => onViewDetails(event.id)}
+            onClick={handleViewDetails}
             className="h-11 border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400 transition-colors font-semibold"
           >
             Detail
