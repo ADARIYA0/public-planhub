@@ -56,11 +56,11 @@ export function Header({
   };
 
   return (
-    <div className="sticky top-0 left-0 right-0 z-50 w-full py-4">
+    <div className="sticky top-0 left-0 right-0 z-50 w-full py-2">
       <div className="max-w-4xl mx-auto px-4">
         <header className="bg-slate-800 rounded-2xl shadow-lg">
           <div className="px-6 py-4">
-            <div className="flex h-12 items-center justify-between">
+            <div className="flex h-10 items-center justify-between">
               {/* Logo */}
               <div 
                 className="flex items-center space-x-3 cursor-pointer group"
