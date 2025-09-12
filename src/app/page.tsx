@@ -42,11 +42,10 @@ export default function Home() {
   };
 
   return (
-    <div>
+    <div className="page-enter">
       <Header 
         currentView="home"
-        isLoggedIn={!!user}
-        userName={user?.name}
+        onViewChange={handleViewChange}
       />
 
       {/* Hero Section with Background Image */}

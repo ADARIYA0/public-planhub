@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { Menu, Calendar, User, LogOut, Search } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   currentView?: string;
@@ -18,13 +19,28 @@ interface HeaderProps {
 export function Header({ 
   currentView = 'home', 
   onViewChange = () => {}, 
-  isLoggedIn = false, 
-  onLogout = () => {}, 
-  userName, 
   transparent = false 
-}: HeaderProps) {
+}: Omit<HeaderProps, 'isLoggedIn' | 'onLogout' | 'userName'>) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const router = useRouter();
+  const { user, isLoggedIn, logout, loading } = useAuth();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const menuItems = [
     { label: 'Beranda', value: 'home', icon: Calendar, route: '/' },
@@ -42,7 +58,7 @@ export function Header({
 
   const handleMenuClick = (value: string, route?: string) => {
     if (value === 'logout') {
-      onLogout();
+      logout();
     } else if (route) {
       router.push(route);
     } else {
@@ -90,8 +106,52 @@ export function Header({
                   </button>
                 ))}
                 
-                {/* Masuk button with same styling as menu items */}
-                {!isLoggedIn && (
+                {/* Profile dropdown when logged in, Masuk button when not */}
+                {!loading && isLoggedIn ? (
+                  <div className="relative" ref={dropdownRef}>
+                    <button
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm flex items-center ${
+                        isDropdownOpen
+                          ? 'bg-primary text-white'
+                          : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                      }`}
+                    >
+                      <User className="h-4 w-4" />
+                    </button>
+                    
+                    {/* Dropdown Menu with Animation */}
+                    {isDropdownOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 transform transition-all duration-200 ease-out opacity-100 scale-100 animate-slideDown">
+                        <button
+                          onClick={() => {
+                            onViewChange('dashboard');
+                            setIsDropdownOpen(false);
+                          }}
+                          className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
+                        >
+                          <User className="h-4 w-4" />
+                          <span>Dashboard</span>
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const result = await logout();
+                            if (result.success) {
+                              setIsDropdownOpen(false);
+                            } else {
+                              // Show error message to user
+                              alert(result.message);
+                            }
+                          }}
+                          className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : !loading ? (
                   <button
                     onClick={handleLoginClick}
                     className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm ${
@@ -102,33 +162,13 @@ export function Header({
                   >
                     Masuk
                   </button>
+                ) : (
+                  <div className="px-4 py-2">
+                    <div className="w-4 h-4 border-2 border-slate-300 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
                 )}
               </nav>
 
-              {/* Desktop User Menu - when logged in */}
-              {isLoggedIn && (
-                <div className="hidden md:flex items-center space-x-4">
-                  <span className="font-medium text-slate-300 text-sm">
-                    Halo, <span className="font-semibold text-white">{userName}</span>
-                  </span>
-                  <Button
-                    variant="ghost"
-                    onClick={() => onViewChange('dashboard')}
-                    className="font-medium px-3 py-1.5 text-sm text-white hover:text-primary hover:bg-slate-700"
-                  >
-                    <User className="h-3 w-3 mr-2" />
-                    Dashboard
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={onLogout}
-                    className="text-coral hover:text-red-400 font-medium px-3 py-1.5 text-sm hover:bg-slate-700"
-                  >
-                    <LogOut className="h-3 w-3 mr-2" />
-                    Keluar
-                  </Button>
-                </div>
-              )}
 
               {/* Mobile Menu */}
               <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -139,10 +179,10 @@ export function Header({
                 </SheetTrigger>
                 <SheetContent side="right" className="w-80">
                   <div className="flex flex-col space-y-4 mt-8">
-                    {isLoggedIn && (
+                    {!loading && isLoggedIn && (
                       <div className="pb-4 border-b border-gray-200">
                         <p className="text-gray-600">Halo,</p>
-                        <p className="font-bold text-gray-900 text-lg">{userName}</p>
+                        <p className="font-bold text-gray-900 text-lg">{user?.name}</p>
                       </div>
                     )}
                     
@@ -174,9 +214,16 @@ export function Header({
                       );
                     })}
                     
-                    {isLoggedIn && (
+                    {!loading && isLoggedIn && (
                       <button
-                        onClick={() => handleMenuClick('logout')}
+                        onClick={async () => {
+                          const result = await logout();
+                          if (result.success) {
+                            setIsOpen(false);
+                          } else {
+                            alert(result.message);
+                          }
+                        }}
                         className="flex items-center space-x-4 p-3 rounded-xl hover:bg-red-50 text-red-600 text-left transition-colors"
                       >
                         <LogOut className="h-5 w-5" />

@@ -7,14 +7,47 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FcGoogle } from 'react-icons/fc';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login, loading, isLoggedIn } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.push('/');
+    }
+  }, [isLoggedIn, router]);
+
+  if (isLoggedIn) {
+    return null;
+  }
   
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Logika login dapat ditambahkan di sini
-    console.log('Form submitted');
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const result = await login(email, password, rememberMe);
+      
+      if (result.success) {
+        router.push('/');
+      } else {
+        setError(result.message || 'Login gagal. Silakan coba lagi.');
+      }
+    } catch (error) {
+      setError('Terjadi kesalahan yang tidak terduga.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const handleBack = () => {
@@ -22,7 +55,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background relative px-4 py-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background relative px-4 py-6 page-enter">
       {/* Header disembunyikan sesuai permintaan */}
       {/* Tombol Kembali dengan responsivitas yang lebih baik */}
       <div className="w-full max-w-md flex justify-start mb-4">
@@ -45,6 +78,11 @@ export default function LoginPage() {
 
             <div className="mb-8">
               <h1 className="text-3xl font-bold mb-2 text-foreground">Selamat datang kembali</h1>
+              {error && (
+                <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
             </div>
             
             <form className="space-y-4" onSubmit={handleSubmit}>
@@ -55,7 +93,10 @@ export default function LoginPage() {
                   type="email" 
                   placeholder="nama@email.com" 
                   autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               
@@ -70,7 +111,10 @@ export default function LoginPage() {
                   id="password" 
                   type="password" 
                   autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               
@@ -78,13 +122,19 @@ export default function LoginPage() {
                 <input 
                   type="checkbox" 
                   id="remember" 
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
                   className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 focus:ring-offset-background"
                 />
                 <label htmlFor="remember" className="text-sm text-foreground">Ingatkan saya</label>
               </div>
               
-              <Button type="submit" className="w-full font-medium">
-                Masuk
+              <Button 
+                type="submit" 
+                className="w-full font-medium" 
+                disabled={isSubmitting || !email || !password}
+              >
+                {isSubmitting ? 'Masuk...' : 'Masuk'}
               </Button>
               
               <div className="relative my-4">
