@@ -1,10 +1,8 @@
 'use client';
 
-import { Header } from '@/components/Header';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import Image from 'next/image';
 import { FcGoogle } from 'react-icons/fc';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,7 +18,6 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already logged in
   useEffect(() => {
     if (isLoggedIn) {
       router.push('/');
@@ -57,8 +54,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background relative px-4 py-6 page-enter">
-      {/* Header disembunyikan sesuai permintaan */}
-      {/* Tombol Kembali dengan responsivitas yang lebih baik */}
       <div className="w-full max-w-md flex justify-start mb-4">
         <Button 
           variant="ghost" 
@@ -73,7 +68,6 @@ export default function LoginPage() {
         </Button>
       </div>
       <div className="w-full max-w-md px-4 sm:px-6 py-6 sm:py-8 bg-background rounded-lg shadow-sm border border-border/10">
-        {/* Form login */}
         <div className="w-full flex flex-col justify-center">
           <div className="max-w-md mx-auto w-full">
 

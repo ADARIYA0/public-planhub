@@ -38,31 +38,25 @@ export default function RegisterPage() {
     const validateFormAndReturnErrors = () => {
         const newErrors: Record<string, string> = {};
 
-        // Email validation
         if (!formData.email) {
             newErrors.email = 'Email wajib diisi';
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
             newErrors.email = 'Format email tidak valid';
         }
 
-        // Phone validation
         if (!formData.no_handphone) {
             newErrors.no_handphone = 'Nomor handphone wajib diisi';
         }
 
-        // Confirm password validation
         if (!formData.confirmPassword) {
             newErrors.confirmPassword = 'Konfirmasi password wajib diisi';
         } else if (formData.password !== formData.confirmPassword) {
             newErrors.confirmPassword = 'Password dan konfirmasi password tidak cocok';
         }
 
-        // Address validation
         if (!formData.alamat) {
             newErrors.alamat = 'Alamat wajib diisi';
         }
-
-        // Education validation
         if (!formData.pendidikan_terakhir) {
             newErrors.pendidikan_terakhir = 'Pendidikan terakhir wajib diisi';
         }
