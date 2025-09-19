@@ -27,32 +27,56 @@ import {
   Phone,
   Mail
 } from 'lucide-react';
-import { mockEvents } from '@/data/mockEvents';
+import { useEventBySlug } from '@/hooks/useEvents';
+import { useAuth } from '@/contexts/AuthContext';
+import { EventService } from '@/services/eventService';
 import { Event, User } from '@/types';
 
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, isLoggedIn } = useAuth();
+  const slug = params.slug as string;
+  const { event, loading, error } = useEventBySlug(slug);
   const [isRegistering, setIsRegistering] = useState(false);
   const [registrationToken, setRegistrationToken] = useState('');
   const [isFavorited, setIsFavorited] = useState(false);
 
-  // Menentukan halaman asal berdasarkan search params
   const fromPage = searchParams.get('from') || 'home';
   const currentView = fromPage === 'event' ? 'search' : 'home';
 
-  // Find event by ID
-  const event = mockEvents.find(e => e.id === params.id);
-
-  if (!event) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header currentView={currentView} isLoggedIn={!!user} />
+        <Header currentView={currentView} />
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+            <div className="h-64 bg-gray-200 rounded-2xl mb-6"></div>
+            <div className="space-y-4">
+              <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header currentView={currentView} />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Event Tidak Ditemukan</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              {error || 'Event Tidak Ditemukan'}
+            </h1>
+            <p className="text-gray-600 mb-6">
+              Event dengan slug "{slug}" tidak dapat ditemukan.
+            </p>
             <Button onClick={() => router.push(fromPage === 'event' ? '/event' : '/')}>
               Kembali ke {fromPage === 'event' ? 'Daftar Event' : 'Beranda'}
             </Button>
@@ -62,45 +86,19 @@ export default function EventDetailPage() {
     );
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('id-ID', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
-  const formatPrice = (price: number) => {
-    return price === 0 ? 'Gratis' : `Rp ${price.toLocaleString('id-ID')}`;
-  };
-
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      'Konferensi': 'bg-teal-50 text-teal-700 border-teal-200',
-      'Workshop': 'bg-blue-50 text-blue-700 border-blue-200',
-      'Seminar': 'bg-slate-50 text-slate-700 border-slate-200',
-      'Meetup': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      'Festival': 'bg-rose-50 text-rose-700 border-rose-200',
-      'Concert': 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    };
-    return colors[category as keyof typeof colors] || 'bg-gray-50 text-gray-700 border-gray-200';
-  };
-
-  const isEventFull = event.registeredParticipants >= event.maxParticipants;
-  const isEventPassed = new Date(`${event.date} ${event.time}`) < new Date();
-  const availableSlots = event.maxParticipants - event.registeredParticipants;
+  const isEventFull = EventService.isEventFull(event);
+  const isEventPassed = EventService.isEventPassed(event);
+  const availableSlots = event.kapasitas_peserta - event.attendee_count;
+  const categoryName = event.kategori?.nama_kategori || 'Umum';
 
   const handleRegister = () => {
-    if (!user) {
+    if (!isLoggedIn) {
       router.push('/login');
       return;
     }
     setIsRegistering(true);
-    // Simulate API call
     setTimeout(() => {
-      alert(`Berhasil mendaftar event "${event.title}"! Token kehadiran akan dikirim ke email Anda.`);
+      alert(`Berhasil mendaftar event "${event.judul_kegiatan}"! Token kehadiran akan dikirim ke email Anda.`);
       setIsRegistering(false);
     }, 1000);
   };
@@ -108,8 +106,8 @@ export default function EventDetailPage() {
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: event.title,
-        text: event.description,
+        title: event.judul_kegiatan,
+        text: event.deskripsi_kegiatan,
         url: window.location.href,
       });
     } else {
@@ -124,9 +122,8 @@ export default function EventDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header currentView={currentView} isLoggedIn={!!user} />
+      <Header currentView={currentView} />
       
-      {/* Header */}
       <div className="bg-gray-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -159,13 +156,11 @@ export default function EventDetailPage() {
 
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Hero Image */}
             <div className="relative overflow-hidden rounded-2xl">
               <Image
-                src={event.image}
-                alt={event.title}
+                src={EventService.getImageUrl(event.gambar_kegiatan)}
+                alt={event.judul_kegiatan}
                 width={800}
                 height={400}
                 className="w-full h-64 md:h-80 object-cover"
@@ -173,18 +168,17 @@ export default function EventDetailPage() {
                 blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
               />
               <div className="absolute top-4 left-4">
-                <Badge className={`${getCategoryColor(event.category)} border font-medium`}>
-                  {event.category}
+                <Badge className={`${EventService.getCategoryColor(categoryName)} border font-medium`}>
+                  {categoryName}
                 </Badge>
               </div>
-              {!event.isRegistrationOpen && (
+              {isEventFull && (
                 <div className="absolute top-4 right-4">
-                  <Badge className="bg-red-500 text-white border-red-500">Pendaftaran Ditutup</Badge>
+                  <Badge className="bg-red-500 text-white border-red-500">Event Penuh</Badge>
                 </div>
               )}
             </div>
 
-            {/* Event Info */}
             <Card className="border-0 shadow-medium">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between mb-2">
@@ -196,10 +190,10 @@ export default function EventDetailPage() {
                     </div>
                     <span className="text-sm text-gray-600">(4.9 dari 250 ulasan)</span>
                   </div>
-                  <span className="text-2xl font-bold text-primary">{formatPrice(event.price)}</span>
+                  <span className="text-2xl font-bold text-primary">{EventService.formatPrice(event.harga)}</span>
                 </div>
                 <CardTitle className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
-                  {event.title}
+                  {event.judul_kegiatan}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -207,21 +201,21 @@ export default function EventDetailPage() {
                   <div className="flex items-center text-gray-600">
                     <Calendar className="h-5 w-5 mr-3 text-primary flex-shrink-0" />
                     <div>
-                      <div className="font-medium text-gray-900">{formatDate(event.date)}</div>
-                      <div className="text-sm">{event.time} WIB</div>
+                      <div className="font-medium text-gray-900">{EventService.formatEventDate(event.waktu_mulai)}</div>
+                      <div className="text-sm">{EventService.formatEventTime(event.waktu_mulai)} WIB</div>
                     </div>
                   </div>
                   <div className="flex items-center text-gray-600">
                     <MapPin className="h-5 w-5 mr-3 text-primary flex-shrink-0" />
                     <div>
                       <div className="font-medium text-gray-900">Lokasi Event</div>
-                      <div className="text-sm">{event.location}</div>
+                      <div className="text-sm">{event.lokasi_kegiatan}</div>
                     </div>
                   </div>
                   <div className="flex items-center text-gray-600">
                     <Users className="h-5 w-5 mr-3 text-primary flex-shrink-0" />
                     <div>
-                      <div className="font-medium text-gray-900">{event.registeredParticipants} / {event.maxParticipants}</div>
+                      <div className="font-medium text-gray-900">{event.attendee_count} / {event.kapasitas_peserta}</div>
                       <div className="text-sm">Peserta terdaftar</div>
                     </div>
                   </div>
@@ -239,7 +233,7 @@ export default function EventDetailPage() {
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-3">Deskripsi Event</h3>
                   <p className="text-gray-600 leading-relaxed">
-                    {event.description}
+                    {event.deskripsi_kegiatan}
                   </p>
                   <p className="text-gray-600 leading-relaxed mt-4">
                     Event ini merupakan kesempatan emas untuk mempelajari teknologi terdepan dari para ahli di bidangnya. 
@@ -288,15 +282,15 @@ export default function EventDetailPage() {
                 <div className="p-4 bg-teal-50 rounded-xl border border-teal-100">
                   <div className="text-center">
                     <div className="text-3xl font-bold text-primary mb-1">
-                      {formatPrice(event.price)}
+                      {EventService.formatPrice(event.harga)}
                     </div>
                     <div className="text-sm text-gray-600">
-                      {event.price === 0 ? 'Event gratis terbatas' : 'Termasuk semua fasilitas'}
+                      {event.harga === 0 ? 'Event gratis terbatas' : 'Termasuk semua fasilitas'}
                     </div>
                   </div>
                 </div>
 
-                {!user ? (
+                {!isLoggedIn ? (
                   <div className="space-y-3">
                     <Button 
                       className="w-full bg-primary hover:bg-teal-700 text-white font-semibold py-3"
@@ -310,7 +304,7 @@ export default function EventDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {event.isRegistrationOpen && !isEventFull && !isEventPassed ? (
+                    {!isEventFull && !isEventPassed ? (
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button className="w-full bg-primary hover:bg-teal-700 text-white font-semibold py-3">
@@ -324,8 +318,8 @@ export default function EventDetailPage() {
                           </DialogHeader>
                           <div className="space-y-4">
                             <div className="p-4 bg-teal-50 rounded-lg">
-                              <h4 className="font-medium text-teal-900 mb-1">{event.title}</h4>
-                              <p className="text-sm text-teal-700">{formatDate(event.date)} • {event.time} WIB</p>
+                              <h4 className="font-medium text-teal-900 mb-1">{event.judul_kegiatan}</h4>
+                              <p className="text-sm text-teal-700">{EventService.formatEventDate(event.waktu_mulai)} • {EventService.formatEventTime(event.waktu_mulai)} WIB</p>
                             </div>
                             
                             <div className="space-y-2">
@@ -370,11 +364,11 @@ export default function EventDetailPage() {
                 <div className="pt-4 border-t space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Kapasitas</span>
-                    <span className="font-medium">{event.maxParticipants} peserta</span>
+                    <span className="font-medium">{event.kapasitas_peserta} peserta</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Terdaftar</span>
-                    <span className="font-medium text-emerald-600">{event.registeredParticipants} peserta</span>
+                    <span className="font-medium text-emerald-600">{event.attendee_count} peserta</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Sisa slot</span>

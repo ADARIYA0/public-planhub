@@ -9,26 +9,25 @@ import { Badge } from '@/components/ui/badge';
 import { EventCard } from '@/components/EventCard';
 import { Footer } from '@/components/Footer';
 import { Calendar, Users, ArrowRight, ChevronRight, Star, Shield, Zap, TrendingUp } from 'lucide-react';
-import { mockEvents } from '@/data/mockEvents';
+import { useEvents } from '@/hooks/useEvents';
+import { useAuth } from '@/contexts/AuthContext';
 import { Event, User } from '@/types';
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, isLoggedIn } = useAuth();
+  const { events, loading, error } = useEvents({ limit: 6, upcoming: true });
   const router = useRouter();
 
-  // Mock event handlers - dalam implementasi nyata ini akan terhubung ke backend
-  const handleViewEvent = (eventId: string) => {
-    console.log('View event:', eventId);
-    // Navigate to event detail page
+  const handleViewEvent = (eventSlug: string) => {
+    router.push(`/event/${eventSlug}`);
   };
 
-  const handleRegisterEvent = (eventId: string) => {
-    if (!user) {
+  const handleRegisterEvent = (eventId: number) => {
+    if (!isLoggedIn) {
       router.push('/login');
       return;
     }
     console.log('Register for event:', eventId);
-    // Handle event registration
   };
 
   const handleViewChange = (view: string) => {
@@ -184,18 +183,47 @@ export default function Home() {
             </p>
           </div>
           
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
-                   {mockEvents.slice(0, 6).map((event) => (
-                     <EventCard
-                       key={event.id}
-                       event={event}
-                       onViewDetails={handleViewEvent}
-                       onRegister={handleRegisterEvent}
-                       isLoggedIn={!!user}
-                       fromPage="home"
-                     />
-                   ))}
-                 </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
+            {loading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
+                  <div className="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                </div>
+              ))
+            ) : error ? (
+              <div className="col-span-full text-center py-12">
+                <div className="text-red-500 mb-4">
+                  <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-semibold">Gagal memuat event</p>
+                  <p className="text-sm text-gray-500 mt-2">{error}</p>
+                </div>
+              </div>
+            ) : events.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg font-semibold text-gray-600">Belum ada event tersedia</p>
+                <p className="text-sm text-gray-500 mt-2">Event akan segera hadir, pantau terus ya!</p>
+              </div>
+            ) : (
+              events.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onViewDetails={handleViewEvent}
+                  onRegister={handleRegisterEvent}
+                  isLoggedIn={isLoggedIn}
+                  fromPage="home"
+                />
+              ))
+            )}
+          </div>
 
           <div className="text-center">
             <Button

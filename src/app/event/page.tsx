@@ -1,152 +1,83 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { EventCard } from '@/components/EventCard';
 import { SearchFilters } from '@/components/SearchFilters';
 import { Footer } from '@/components/Footer';
-import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Calendar } from 'lucide-react';
-import { mockEvents } from '@/data/mockEvents';
-import { Event, User, Filters } from '@/types';
+import { useEvents } from '@/hooks/useEvents';
+import { useAuth } from '@/contexts/AuthContext';
+import { Filters, EventCategory } from '@/types';
 
 export default function EventPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const { isLoggedIn } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Filters>({
-    category: 'Semua Kategori',
-    location: 'Semua Lokasi',
-    priceRange: 'Semua Harga',
-    dateRange: 'Semua Waktu'
+    category: 'all',
+    dateRange: 'all'
   });
 
-  // Filter events based on search query and filters
-  const filteredEvents = useMemo(() => {
-    let filtered = mockEvents;
+  const { events, loading, error, refetch } = useEvents({ 
+    limit: 20, 
+    search: searchQuery || undefined,
+    category: filters.category !== 'all' ? filters.category : undefined,
+    time_range: filters.dateRange !== 'all' ? filters.dateRange : undefined
+  });
 
-    // Search by query
-    if (searchQuery) {
-      filtered = filtered.filter(event =>
-        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.location.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    refetch({ 
+      search: query || undefined, 
+      category: filters.category !== 'all' ? filters.category : undefined,
+      time_range: filters.dateRange !== 'all' ? filters.dateRange : undefined
+    });
+  };
 
-    // Filter by category
-    if (filters.category && filters.category !== 'Semua Kategori') {
-      filtered = filtered.filter(event => event.category === filters.category);
-    }
-
-    // Filter by location
-    if (filters.location && filters.location !== 'Semua Lokasi') {
-      if (filters.location === 'Online') {
-        filtered = filtered.filter(event => 
-          event.location.toLowerCase().includes('online') || 
-          event.location.toLowerCase().includes('virtual')
-        );
-      } else {
-        filtered = filtered.filter(event => 
-          event.location.toLowerCase().includes(filters.location.toLowerCase())
-        );
-      }
-    }
-
-    // Filter by price range
-    if (filters.priceRange && filters.priceRange !== 'Semua Harga') {
-      switch (filters.priceRange) {
-        case 'Gratis':
-          filtered = filtered.filter(event => event.price === 0);
-          break;
-        case 'Rp 0 - Rp 100.000':
-          filtered = filtered.filter(event => event.price >= 0 && event.price <= 100000);
-          break;
-        case 'Rp 100.000 - Rp 500.000':
-          filtered = filtered.filter(event => event.price > 100000 && event.price <= 500000);
-          break;
-        case 'Rp 500.000 - Rp 1.000.000':
-          filtered = filtered.filter(event => event.price > 500000 && event.price <= 1000000);
-          break;
-        case 'Rp 1.000.000+':
-          filtered = filtered.filter(event => event.price > 1000000);
-          break;
-      }
-    }
-
-    // Filter by date range
-    if (filters.dateRange && filters.dateRange !== 'Semua Waktu') {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
-      switch (filters.dateRange) {
-        case 'Hari Ini':
-          filtered = filtered.filter(event => {
-            const eventDate = new Date(event.date);
-            return eventDate.toDateString() === today.toDateString();
-          });
-          break;
-        case 'Minggu Ini':
-          const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-          filtered = filtered.filter(event => {
-            const eventDate = new Date(event.date);
-            return eventDate >= today && eventDate <= nextWeek;
-          });
-          break;
-        case 'Bulan Ini':
-          const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-          filtered = filtered.filter(event => {
-            const eventDate = new Date(event.date);
-            return eventDate >= today && eventDate <= nextMonth;
-          });
-          break;
-        case 'Bulan Depan':
-          const monthAfterNext = new Date(today.getFullYear(), today.getMonth() + 2, today.getDate());
-          const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-          filtered = filtered.filter(event => {
-            const eventDate = new Date(event.date);
-            return eventDate >= nextMonthStart && eventDate <= monthAfterNext;
-          });
-          break;
-      }
-    }
-
-    // Sort by date (nearest first)
-    return filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [searchQuery, filters]);
+  const handleFiltersChange = (newFilters: Filters) => {
+    setFilters(newFilters);
+    refetch({ 
+      search: searchQuery || undefined, 
+      category: newFilters.category !== 'all' ? newFilters.category : undefined,
+      time_range: newFilters.dateRange !== 'all' ? newFilters.dateRange : undefined
+    });
+  };
 
   const handleClearFilters = () => {
-    setFilters({
-      category: 'Semua Kategori',
-      location: 'Semua Lokasi',
-      priceRange: 'Semua Harga',
-      dateRange: 'Semua Waktu'
+    const clearedFilters = { category: 'all', dateRange: 'all' };
+    setFilters(clearedFilters);
+    refetch({ 
+      search: searchQuery || undefined, 
+      category: undefined,
+      time_range: undefined
     });
-    setSearchQuery('');
   };
 
-  const handleViewEvent = (eventId: string) => {
-    console.log('View event:', eventId);
+  const handleViewEvent = (eventSlug: string) => {
+    router.push(`/event/${eventSlug}`);
   };
 
-  const handleRegisterEvent = (eventId: string) => {
-    if (!user) {
+  const handleRegisterEvent = (eventId: number) => {
+    if (!isLoggedIn) {
       router.push('/login');
       return;
     }
     console.log('Register for event:', eventId);
   };
 
+  // Extract unique categories from events
+  const availableCategories: EventCategory[] = events
+    .map(event => event.kategori)
+    .filter((kategori, index, self) => 
+      kategori && self.findIndex(k => k?.slug === kategori.slug) === index
+    ) as EventCategory[];
+
   return (
     <div className="min-h-screen bg-white">
-      <Header
-        currentView="search"
-        isLoggedIn={!!user}
-        userName={user?.name}
-      />
+      <Header currentView="search" />
       
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6">
@@ -157,17 +88,18 @@ export default function EventPage() {
           
           <SearchFilters
             searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            onSearchChange={handleSearchChange}
             filters={filters}
-            onFiltersChange={setFilters}
+            onFiltersChange={handleFiltersChange}
             onClearFilters={handleClearFilters}
+            availableCategories={availableCategories}
           />
         </div>
 
         <div className="mb-5">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">
-              {filteredEvents.length} Event Ditemukan
+              {loading ? 'Memuat...' : `${events.length} Event Ditemukan`}
             </h2>
             <div className="text-sm text-gray-500">
               Diurutkan berdasarkan waktu terdekat
@@ -177,36 +109,44 @@ export default function EventPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
-          {filteredEvents.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              onViewDetails={handleViewEvent}
-              onRegister={handleRegisterEvent}
-              isLoggedIn={!!user}
-              fromPage="event"
-            />
-          ))}
+          {loading ? (
+            Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
+                <div className="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                <div className="space-y-2">
+                  <div className="h-3 bg-gray-200 rounded"></div>
+                  <div className="h-3 bg-gray-200 rounded"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </div>
+            ))
+          ) : error ? (
+            <div className="col-span-full text-center py-12">
+              <Calendar className="h-16 w-16 mx-auto mb-4 text-red-300" />
+              <p className="text-lg font-semibold text-red-600">Gagal memuat event</p>
+              <p className="text-sm text-gray-500 mt-2">{error}</p>
+            </div>
+          ) : events.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-semibold text-gray-600">Tidak ada event ditemukan</p>
+              <p className="text-sm text-gray-500 mt-2">Coba ubah kata kunci pencarian</p>
+            </div>
+          ) : (
+            events.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                onViewDetails={handleViewEvent}
+                onRegister={handleRegisterEvent}
+                isLoggedIn={isLoggedIn}
+                fromPage="event"
+              />
+            ))
+          )}
         </div>
-
-        {filteredEvents.length === 0 && (
-          <div className="text-center py-10">
-            <Calendar className="h-20 w-20 text-gray-300 mx-auto mb-3" />
-            <h3 className="font-semibold text-gray-600 mb-2">
-              Tidak ada event yang ditemukan
-            </h3>
-            <p className="text-gray-500 mb-4 text-sm">
-              Coba ubah filter atau kata kunci pencarian
-            </p>
-            <Button 
-              onClick={handleClearFilters} 
-              variant="outline"
-              className="border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
-              Reset Filter
-            </Button>
-          </div>
-        )}
       </div>
       
       <Footer />
