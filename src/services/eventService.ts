@@ -96,14 +96,6 @@ export class EventService {
     if (!imagePath) return '/event/default-event.jpg';
     if (imagePath.startsWith('http')) return imagePath;
     
-    // Jika imagePath sudah mengandung /uploads, gunakan langsung tapi perbaiki path
-    if (imagePath.startsWith('/uploads')) {
-      // Ganti /uploads/event/ menjadi /uploads/events/
-      const correctedPath = imagePath.replace('/uploads/event/', '/uploads/events/');
-      return `${process.env.NEXT_PUBLIC_BASE_URL}${correctedPath}`;
-    }
-    
-    // Jika tidak, tambahkan path /uploads/events/
     return `${process.env.NEXT_PUBLIC_BASE_URL}/uploads/events/${imagePath}`;
   }
 
